@@ -3,7 +3,9 @@ const { RANGES } = require('../constants');
 const { getSheetsClient } = require('./auth');
 const spreadsheetId = process.env.SPREADSHEET_ID;
 
-// Відправка повідомлення оператору 1С
+const activeRequests = new Map(); // Збережемо тут повідомлення операторів
+
+// Функція для відправки повідомлення обом операторам
 async function sendToOperator1C(rowId) {
   const sheets = await getSheetsClient();
 
@@ -12,7 +14,6 @@ async function sendToOperator1C(rowId) {
     spreadsheetId,
     range: RANGES.TRANSFERS_ROW(rowId), // Отримуємо дані з рядка rowId
   });
-
   if (!res.data.values || res.data.values.length === 0) return;
 
   const row = res.data.values[0];
@@ -21,15 +22,23 @@ async function sendToOperator1C(rowId) {
   // Отримуємо всіх користувачів із таблиці Users, де статус 'Operator_on'
   const operators = await getOperatorsByStatus('Operator_on');
 
-  // Відправляємо повідомлення тільки тим, хто має статус 'Operator_on'
   for (const operatorId of operators) {
-    bot.sendMessage(operatorId, message, {
+    const sentMessage = await bot.sendMessage(operatorId, message, {
       reply_markup: {
         inline_keyboard: [
-          [{ text: '✅ Проведено', callback_data: 'processed_' + rowId }],
+          [{ text: '📝 Взяти в роботу', callback_data: `take_${rowId}` }],
+          [{ text: '✅ Проведено', callback_data: `processed_${rowId}` }],
         ],
       },
     });
+
+    // Зберігаємо ідентифікатор повідомлення
+    if (!activeRequests.has(rowId)) {
+      activeRequests.set(rowId, []);
+    }
+    activeRequests
+      .get(rowId)
+      .push({ chatId: operatorId, messageId: sentMessage.message_id });
   }
 }
 
@@ -39,7 +48,7 @@ async function getOperators1C() {
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: RANGES.USERS, // Отримуємо стовпці A (Telegram ID) і E (Посада)
+    range: RANGES.USERS, // Отримуємо стовпці A (Telegram ID) і E (Ролі)
   });
 
   if (!res.data.values) return [];
@@ -56,7 +65,7 @@ async function getOperatorsByStatus(status) {
   // Отримуємо всі дані з аркуша Users
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: 'Users!A:E', // Отримуємо колонки A (Telegram ID) і E (Посада)
+    range: 'Users!A:E', // Отримуємо колонки A (Telegram ID) і E (Роль)
   });
 
   if (!res.data.values) return [];
@@ -89,16 +98,31 @@ async function getAdmin() {
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: RANGES.ADMINS, // Отримуємо Telegram ID адмінів
+    range: RANGES.USERS, // Отримуємо дані користувачів
   });
 
   if (!res.data.values) return [];
 
-  return res.data.values.flat();
+  return res.data.values
+    .filter((row) => row[4] === 'Admin') // Фільтруємо по 5-му стовпцю (E)
+    .map((row) => row[0]); // Беремо лише Telegram ID (стовпець A)
 }
 
-getAdmin().then((ids) => console.log('Отримані ID адміністраторів:', ids));
-getOperators1C().then((ids) => console.log('Отримані ID операторів:', ids));
+// Отримання ID апрувнутих користувачів
+async function getApprovedUsers() {
+  const sheets = await getSheetsClient();
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: RANGES.USERS, // Отримуємо дані користувачів
+  });
+
+  if (!res.data.values) return [];
+
+  return res.data.values
+    .filter((row) => row[4] === 'Approved') // Фільтруємо по 5-му стовпцю (E)
+    .map((row) => row[0]); // Беремо лише Telegram ID (стовпець A)
+}
 
 // Зміна активності оператора
 async function updateOperatorStatus(chatId, newStatus) {
@@ -142,4 +166,6 @@ module.exports = {
   sendToAdmin,
   updateOperatorStatus,
   getOperators1C,
+  getApprovedUsers,
+  activeRequests,
 };

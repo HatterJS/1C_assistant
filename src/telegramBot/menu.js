@@ -1,12 +1,8 @@
 const bot = require('../config/botConfig');
-const { getSheetsClient } = require('../googleSheets/auth');
 const {
   updateOperatorStatus,
   getOperators1C,
 } = require('../googleSheets/operators');
-const { RANGES } = require('../constants');
-
-const spreadsheetId = process.env.SPREADSHEET_ID;
 
 // Функція для створення меню
 async function createMenu(chatId) {
@@ -35,11 +31,5 @@ bot.onText(/Відключитись/, async (msg) => {
   await updateOperatorStatus(chatId, 'Operator_off');
   bot.sendMessage(chatId, '🔴 Ви тепер неактивний оператор.');
 });
-/*
-// Показ меню при кожному новому повідомленні
-bot.on('message', (msg) => {
-  const chatId = msg.chat.id;
-  createMenu(chatId);
-});
-*/
+
 module.exports = { createMenu };

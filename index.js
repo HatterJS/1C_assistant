@@ -29,4 +29,4 @@ setInterval(async () => {
 
     lastKnownRow = lastRow;
   }
-}, 60000);
+}, 30000);
