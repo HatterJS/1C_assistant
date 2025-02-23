@@ -14,7 +14,7 @@ const RANGES = {
   WAREHOUSES_ALL: `${SHEETS.WAREHOUSES}!A2:G`, // A - перелік складів / B - скорочення / C-G - відповідальні
   OPERATORS: `${SHEETS.OPERATORS}!B2:B`, // Перелік операторів 1С
   ADMINS: `${SHEETS.OPERATORS}!D2:D`, // Перелік адмінів
-  USERS: `${SHEETS.USERS}!A2:A`, // Перелік відповідальних за склади
+  USERS: `${SHEETS.USERS}!A2:E`, // Перелік користувачів
 };
 /*
   const TELEGRAM = {
