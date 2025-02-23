@@ -1,4 +1,5 @@
 const bot = require('../config/botConfig');
+const { SHEETS, RANGES } = require('../constants');
 const {
   isUserRegistered,
   getWarehouseResponsibleChatIds,
@@ -9,7 +10,6 @@ const { updateGoogleSheet } = require('../googleSheets/update');
 const { sendToOperator1C, sendToAdmin } = require('../googleSheets/operators');
 
 const spreadSheetID = process.env.SPREADSHEET_ID;
-const usersSheet = 'Users';
 const userStates = {}; // Об'єкт для тимчасового зберігання стану користувачів
 
 // Обробка команди /start
@@ -96,7 +96,7 @@ async function choiceWarehouse(query) {
   try {
     await sheets.spreadsheets.values.append({
       spreadsheetId: spreadSheetID,
-      range: usersSheet,
+      range: SHEETS.USERS,
       valueInputOption: 'RAW',
       insertDataOption: 'INSERT_ROWS',
       resource: {
@@ -122,25 +122,24 @@ async function choiceWarehouse(query) {
   delete userStates[chatId]; // Очищуємо стан
 }
 
-// Функція для відправки повідомлення в Telegram
+// Функція для відправки повідомлення відповідальному, який передає
 async function sendTelegramMessage(rowId) {
   const sheets = await getSheetsClient();
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: spreadSheetID,
-    range: `Переміщення!A${rowId}:G${rowId}`, // Отримуємо дані для конкретного рядка
+    range: RANGES.TRANSFERS_ROW(rowId), // Отримуємо дані для конкретного рядка
   });
 
   const row = res.data.values[0]; // Останній рядок з таблиці
   const message = `⚠️ Оформлено запит №${rowId} на переміщення.\n\nЗі складу: ${row[2]}\nНа склад: ${row[3]}\nКод 1С: ${row[4]}\nНоменклатура: ${row[5]}\nКількість: ${row[6]}\n\n`;
 
-  //const chatId = 7522288922; // або отримуєте з іншої таблиці
-  const warehouseTo = row[3]; // Склад, на який переміщується ТМЦ
-  const chatIdList = await getWarehouseResponsibleChatIds(warehouseTo);
+  const warehouseFrom = row[2]; // Склад, з якого переміщується ТМЦ
+  const chatIdList = await getWarehouseResponsibleChatIds(warehouseFrom);
 
   if (chatIdList.length === 0) {
     console.log(
-      `⚠️ Немає відповідальних за склад ${warehouseTo}, повідомлення не відправлено.`
+      `⚠️ Немає відповідальних за склад ${warehouseFrom}, повідомлення не відправлено.`
     );
     return;
   }
@@ -150,14 +149,50 @@ async function sendTelegramMessage(rowId) {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '✅ Підтвердити', callback_data: 'confirm_' + rowId },
-            { text: '❌ Скасувати', callback_data: 'cancel_' + rowId },
+            { text: '✅ Підтвердити', callback_data: 'confirmOut_' + rowId },
+            { text: '❌ Скасувати', callback_data: 'cancelOut_' + rowId },
           ],
         ],
       },
     });
   }
 }
+// Функція для відправки повідомлення відповідальному, який отримує
+async function sendToUserIn(rowId) {
+  const sheets = await getSheetsClient();
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: spreadSheetID,
+    range: RANGES.TRANSFERS_ROW(rowId), // Отримуємо дані для конкретного рядка
+  });
+
+  const row = res.data.values[0]; // Останній рядок з таблиці
+  const message = `⚠️ Оформлено запит №${rowId} на переміщення.\n\nЗі складу: ${row[2]}\nНа склад: ${row[3]}\nКод 1С: ${row[4]}\nНоменклатура: ${row[5]}\nКількість: ${row[6]}\n\n`;
+
+  const warehouseFrom = row[3]; // Склад, з якого переміщується ТМЦ
+  const chatIdList = await getWarehouseResponsibleChatIds(warehouseFrom);
+
+  if (chatIdList.length === 0) {
+    console.log(
+      `⚠️ Немає відповідальних за склад ${warehouseFrom}, повідомлення не відправлено.`
+    );
+    return;
+  }
+
+  for (const chatId of chatIdList) {
+    bot.sendMessage(chatId, message, {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '✅ Підтвердити', callback_data: 'confirmIn_' + rowId },
+            { text: '❌ Скасувати', callback_data: 'cancelIn_' + rowId },
+          ],
+        ],
+      },
+    });
+  }
+}
+
 // Реакція ан натискання кнопок
 async function buttonReaction(query) {
   const data = query.data;
@@ -169,16 +204,26 @@ async function buttonReaction(query) {
   const lastName = query.from.last_name || '';
   const userName = query.from.username || `${firstName} ${lastName}`.trim();
 
-  if (data.startsWith('confirm_')) {
-    newText = `✅ Запит №${rowId} підтверджено`;
-    await updateGoogleSheet(rowId, 'Підтверджено', 'J', userName); // Оновлення статусу в Google Таблиці
-    await sendToOperator1C(rowId);
-  } else if (data.startsWith('cancel_')) {
+  if (data.startsWith('confirmOut_')) {
+    newText = `✅ Запит №${rowId} Передано`;
+    await updateGoogleSheet(rowId, 'Передано', 'J', userName); // Оновлення статусу в Google Таблиці
+    await sendToUserIn(rowId);
+  } else if (data.startsWith('cancelOut_')) {
     newText = `❌ Запит №${rowId} скасовано`;
     await updateGoogleSheet(rowId, 'Скасовано', 'J', userName); // Оновлення статусу в Google Таблиці
+  } else if (data.startsWith('confirmIn_')) {
+    newText = `✅ Запит №${rowId} Отримано`;
+    await updateGoogleSheet(rowId, 'Отримано', 'K', userName); // Оновлення статусу в Google Таблиці
+    await sendToOperator1C(rowId);
+  } else if (data.startsWith('cancelIn_')) {
+    newText = `❌ Запит №${rowId} скасовано`;
+    await updateGoogleSheet(rowId, 'Скасовано', 'K', userName); // Оновлення статусу в Google Таблиці
   } else if (data.startsWith('processed_')) {
     newText = `✅ Запит №${rowId} проведено`;
-    await updateGoogleSheet(rowId, 'Проведено', 'K', userName); // Оновлення статусу в Google Таблиці
+    await updateGoogleSheet(rowId, 'Проведено', 'L', userName); // Оновлення статусу в Google Таблиці
+  } else if (data.startsWith('warehouse_')) {
+    newText = `✅ Склад обрано успішно`;
+    await choiceWarehouse(query); // Додавання нового користувача в Google Таблиці + повідомлення в TG
   }
 
   try {

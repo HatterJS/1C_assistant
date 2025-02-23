@@ -1,13 +1,13 @@
 const { getSheetsClient } = require('./auth');
+const { RANGES } = require('../constants');
 const spreadSheetID = process.env.SPREADSHEET_ID;
-const usersSheet = 'Users';
 
 // Перевірка користувача на реєстрацію
 async function isUserRegistered(telegramID) {
   const sheets = await getSheetsClient();
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: spreadSheetID,
-    range: `${usersSheet}!A:A`,
+    range: RANGES.USERS,
   });
   const ids = response.data.values ? response.data.values.flat() : [];
   return ids.includes(String(telegramID));
@@ -40,7 +40,7 @@ async function getWarehouseResponsibleChatIds(warehouseName) {
   // Отримуємо всі дані з аркуша "Склади"
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: spreadSheetID,
-    range: 'Склади!A:G', // Колонки A (склади) - G (відповідальні)
+    range: RANGES.WAREHOUSES_ALL,
   });
 
   const rows = res.data.values;

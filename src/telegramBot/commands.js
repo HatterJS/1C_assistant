@@ -3,5 +3,4 @@ const userFlow = require('./userFlow');
 
 bot.onText(/\/start/, userFlow.handleStart);
 bot.on('message', userFlow.getUserName);
-bot.on('callback_query', userFlow.choiceWarehouse);
 bot.on('callback_query', userFlow.buttonReaction);

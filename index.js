@@ -2,7 +2,7 @@ require('dotenv').config();
 
 require('./src/telegramBot/commands'); // Підключаємо всі команди для бота
 
-const { getLastRow } = require('./src/telegramBot/bot');
+const { getLastRow } = require('./src/googleSheets/transfers');
 const { sendTelegramMessage } = require('./src/telegramBot/userFlow');
 const { sendToAdmin } = require('./src/googleSheets/operators');
 

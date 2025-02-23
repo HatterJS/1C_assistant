@@ -1,4 +1,5 @@
 const bot = require('../config/botConfig');
+const { RANGES } = require('../constants');
 const { getSheetsClient } = require('./auth');
 const spreadsheetId = process.env.SPREADSHEET_ID;
 
@@ -8,7 +9,7 @@ async function sendToOperator1C(rowId) {
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `Переміщення!A${rowId}:H${rowId}`,
+    range: RANGES.TRANSFERS_ROW(rowId), // Отримуємо дані з рядка rowId
   });
 
   if (!res.data.values || res.data.values.length === 0) return;
@@ -35,7 +36,7 @@ async function getOperators1C() {
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `Оператори 1С!B2:B`, // Тут у стовпці B містяться Telegram ID операторів 1С
+    range: RANGES.OPERATORS, // Отримуємо Telegram ID операторів 1С
   });
 
   if (!res.data.values) return [];
@@ -58,7 +59,7 @@ async function getAdmin() {
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `Оператори 1С!D2:D`, // Тут у стовпці D містяться Telegram ID адмінів
+    range: RANGES.ADMINS, // Отримуємо Telegram ID адмінів
   });
 
   if (!res.data.values) return [];
@@ -66,7 +67,7 @@ async function getAdmin() {
   return res.data.values.flat();
 }
 
-getAdmin().then((ids) => console.log('📋 Отримані ID адміністраторів:', ids));
-getOperators1C().then((ids) => console.log('📋 Отримані ID операторів:', ids));
+getAdmin().then((ids) => console.log('Отримані ID адміністраторів:', ids));
+getOperators1C().then((ids) => console.log('Отримані ID операторів:', ids));
 
 module.exports = { sendToOperator1C, sendToAdmin };
