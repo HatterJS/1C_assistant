@@ -16,6 +16,8 @@ const {
 
 const spreadSheetID = process.env.SPREADSHEET_ID;
 const userStates = {}; // Об'єкт для тимчасового зберігання стану користувачів
+const activeRequestsOut = new Map(); // Збережемо тут повідомлення передачі
+const activeRequestsIn = new Map(); // Збережемо тут повідомлення отримання
 
 // Обробка команди /start
 async function handleStart(msg) {
@@ -154,7 +156,7 @@ async function sendTelegramMessage(rowId) {
     if (!approvedUsers.includes(chatId.toString())) {
       continue; // Перехід до наступної ітерації, якщо користувач не апрувнутий
     }
-    bot.sendMessage(chatId, message, {
+    const sentMessage = await bot.sendMessage(chatId, message, {
       reply_markup: {
         inline_keyboard: [
           [
@@ -164,6 +166,14 @@ async function sendTelegramMessage(rowId) {
         ],
       },
     });
+
+    // Зберігаємо ідентифікатор повідомлення
+    if (!activeRequestsOut.has(rowId)) {
+      activeRequestsOut.set(rowId, []);
+    }
+    activeRequestsOut
+      .get(rowId)
+      .push({ chatId: chatId, messageId: sentMessage.message_id });
   }
 }
 // Функція для відправки повідомлення відповідальному, який отримує
@@ -193,7 +203,7 @@ async function sendToUserIn(rowId) {
     if (!approvedUsers.includes(chatId.toString())) {
       continue; // Перехід до наступної ітерації, якщо користувач не апрувнутий
     }
-    bot.sendMessage(chatId, message, {
+    const sentMessage = await bot.sendMessage(chatId, message, {
       reply_markup: {
         inline_keyboard: [
           [
@@ -203,6 +213,14 @@ async function sendToUserIn(rowId) {
         ],
       },
     });
+
+    // Зберігаємо ідентифікатор повідомлення
+    if (!activeRequestsIn.has(rowId)) {
+      activeRequestsIn.set(rowId, []);
+    }
+    activeRequestsIn
+      .get(rowId)
+      .push({ chatId: chatId, messageId: sentMessage.message_id });
   }
 }
 
@@ -217,40 +235,47 @@ async function buttonReaction(query) {
   const firstName = query.from.first_name || '';
   const lastName = query.from.last_name || '';
   const userName = query.from.username || `${firstName} ${lastName}`.trim();
-  /*
-  if (!data.startsWith('warehouse_')){
-    const approvedUsers = await getApprovedUsers(); // Отримуємо список апрувнутих користувачів
-    if (!approvedUsers.includes(telegramID.toString())) {
-      newText = `❌ Ви не маєта прав на цю операцію.`;
-      try {
-        await bot.editMessageText(newText, {
-          chat_id: chatId,
-          message_id: messageId,
-          reply_markup: { inline_keyboard: [] }, // Видаляємо кнопки разом з текстом
-        });
-      } catch (error) {
-        console.error('Помилка при редагуванні повідомлення:', error);
+  
+ async function deleteDuplicates(step, newText) {
+    const messages = step === 'out' 
+    ? activeRequestsOut.get(Number(rowId)) || [] 
+    : activeRequestsIn.get(rowId) || [];
+
+    for (const msg of messages) {
+      if (Number(msg.chatId) !== Number(chatId)) {
+        try {
+          await bot.editMessageText(newText, {
+            chat_id: msg.chatId,
+            message_id: msg.messageId,
+            reply_markup: { inline_keyboard: [] }, // Видаляємо кнопки разом з текстом
+          });
+        } catch (error) {
+          console.error('Помилка при редагуванні повідомлення:', error);
+        }
       }
-      return; // Вихід з функції, якщо користувач не апрувнутий
     }
-  }
-  */
+ }
+
   if (data.startsWith('confirmOut_')) {
-    newText = `✅ Запит №${rowId} передано`;
+    newText = `✅ Запит №${rowId} передано @${userName}`;
     await updateGoogleSheet(rowId, 'Передано', 'J', userName); // Оновлення статусу в Google Таблиці
+    await deleteDuplicates('out', newText);
     await sendToUserIn(rowId);
   } else if (data.startsWith('cancelOut_')) {
-    newText = `❌ Запит №${rowId} скасовано`;
+    newText = `❌ Запит №${rowId} скасовано @${userName}`;
     await updateGoogleSheet(rowId, 'Скасовано', 'J', userName); // Оновлення статусу в Google Таблиці
+    await deleteDuplicates('out', newText);
   } else if (data.startsWith('confirmIn_')) {
-    newText = `✅ Запит №${rowId} отримано`;
+    newText = `✅ Запит №${rowId} отримано @${userName}`;
     await updateGoogleSheet(rowId, 'Отримано', 'K', userName); // Оновлення статусу в Google Таблиці
+    await deleteDuplicates('in', newText);
     await sendToOperator1C(rowId);
   } else if (data.startsWith('cancelIn_')) {
-    newText = `❌ Запит №${rowId} скасовано`;
+    newText = `❌ Запит №${rowId} скасовано @${userName}`;
     await updateGoogleSheet(rowId, 'Скасовано', 'K', userName); // Оновлення статусу в Google Таблиці
+    await deleteDuplicates('in', newText);
   } else if (data.startsWith('processed_')) {
-    newText = `✅ Запит №${rowId} проведено`;
+    newText = `✅ Запит №${rowId} проведено @${userName}`;
     await updateGoogleSheet(rowId, 'Проведено', 'L', userName); // Оновлення статусу в Google Таблиці
   } else if (data.startsWith('warehouse_')) {
     newText = `✅ Склад обрано успішно`;
