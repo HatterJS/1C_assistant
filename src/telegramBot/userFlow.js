@@ -141,6 +141,7 @@ async function sendTelegramMessage(rowId) {
 
   const warehouseFrom = row[2]; // Склад, з якого переміщується ТМЦ
   const chatIdList = await getWarehouseResponsibleChatIds(warehouseFrom);
+  const approvedUsers = await getApprovedUsers(); // Отримуємо список апрувнутих користувачів
 
   if (chatIdList.length === 0) {
     console.log(
@@ -150,6 +151,9 @@ async function sendTelegramMessage(rowId) {
   }
 
   for (const chatId of chatIdList) {
+    if (!approvedUsers.includes(chatId.toString())) {
+      continue; // Перехід до наступної ітерації, якщо користувач не апрувнутий
+    }
     bot.sendMessage(chatId, message, {
       reply_markup: {
         inline_keyboard: [
@@ -176,6 +180,7 @@ async function sendToUserIn(rowId) {
 
   const warehouseFrom = row[3]; // Склад, з якого переміщується ТМЦ
   const chatIdList = await getWarehouseResponsibleChatIds(warehouseFrom);
+  const approvedUsers = await getApprovedUsers(); // Отримуємо список апрувнутих користувачів
 
   if (chatIdList.length === 0) {
     console.log(
@@ -185,6 +190,9 @@ async function sendToUserIn(rowId) {
   }
 
   for (const chatId of chatIdList) {
+    if (!approvedUsers.includes(chatId.toString())) {
+      continue; // Перехід до наступної ітерації, якщо користувач не апрувнутий
+    }
     bot.sendMessage(chatId, message, {
       reply_markup: {
         inline_keyboard: [
@@ -209,23 +217,24 @@ async function buttonReaction(query) {
   const firstName = query.from.first_name || '';
   const lastName = query.from.last_name || '';
   const userName = query.from.username || `${firstName} ${lastName}`.trim();
-if (!data.startsWith('warehouse_')){
-  const approvedUsers = await getApprovedUsers(); // Отримуємо список апрувнутих користувачів
-  if (!approvedUsers.includes(telegramID.toString())) {
-    newText = `❌ Ви не маєта прав на цю операцію.`;
-    try {
-      await bot.editMessageText(newText, {
-        chat_id: chatId,
-        message_id: messageId,
-        reply_markup: { inline_keyboard: [] }, // Видаляємо кнопки разом з текстом
-      });
-    } catch (error) {
-      console.error('Помилка при редагуванні повідомлення:', error);
+  /*
+  if (!data.startsWith('warehouse_')){
+    const approvedUsers = await getApprovedUsers(); // Отримуємо список апрувнутих користувачів
+    if (!approvedUsers.includes(telegramID.toString())) {
+      newText = `❌ Ви не маєта прав на цю операцію.`;
+      try {
+        await bot.editMessageText(newText, {
+          chat_id: chatId,
+          message_id: messageId,
+          reply_markup: { inline_keyboard: [] }, // Видаляємо кнопки разом з текстом
+        });
+      } catch (error) {
+        console.error('Помилка при редагуванні повідомлення:', error);
+      }
+      return; // Вихід з функції, якщо користувач не апрувнутий
     }
-    return; // Вихід з функції, якщо користувач не апрувнутий
   }
-}
-
+  */
   if (data.startsWith('confirmOut_')) {
     newText = `✅ Запит №${rowId} передано`;
     await updateGoogleSheet(rowId, 'Передано', 'J', userName); // Оновлення статусу в Google Таблиці
