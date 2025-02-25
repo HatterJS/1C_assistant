@@ -209,7 +209,7 @@ async function buttonReaction(query) {
   const firstName = query.from.first_name || '';
   const lastName = query.from.last_name || '';
   const userName = query.from.username || `${firstName} ${lastName}`.trim();
-
+if (!data.startsWith('warehouse_')){
   const approvedUsers = await getApprovedUsers(); // Отримуємо список апрувнутих користувачів
   if (!approvedUsers.includes(telegramID.toString())) {
     newText = `❌ Ви не маєта прав на цю операцію.`;
@@ -224,6 +224,7 @@ async function buttonReaction(query) {
     }
     return; // Вихід з функції, якщо користувач не апрувнутий
   }
+}
 
   if (data.startsWith('confirmOut_')) {
     newText = `✅ Запит №${rowId} передано`;
