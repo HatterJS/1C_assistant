@@ -23,22 +23,27 @@ async function sendToOperator1C(rowId) {
   const operators = await getOperatorsByStatus('Operator_on');
 
   for (const operatorId of operators) {
-    const sentMessage = await bot.sendMessage(operatorId, message, {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '📝 Взяти в роботу', callback_data: `take_${rowId}` }],
-          [{ text: '✅ Проведено', callback_data: `processed_${rowId}` }],
-        ],
-      },
-    });
-
-    // Зберігаємо ідентифікатор повідомлення
-    if (!activeRequests.has(rowId)) {
-      activeRequests.set(rowId, []);
+    try {
+      const sentMessage = await bot.sendMessage(operatorId, message, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '📝 Взяти в роботу', callback_data: `take_${rowId}` }],
+            [{ text: '✅ Проведено', callback_data: `processed_${rowId}` }],
+          ],
+        },
+      });
+  
+      // Зберігаємо ідентифікатор повідомлення
+      if (!activeRequests.has(rowId)) {
+        activeRequests.set(rowId, []);
+      }
+      activeRequests
+        .get(rowId)
+        .push({ chatId: operatorId, messageId: sentMessage.message_id });
+    } catch(error){
+      console.error(`❌ Помилка при надсиланні повідомлення для chatId ${operatorId}:`, error.message);
+      continue; // Перехід до наступного користувача у списку
     }
-    activeRequests
-      .get(rowId)
-      .push({ chatId: operatorId, messageId: sentMessage.message_id });
   }
 }
 
@@ -86,9 +91,14 @@ async function getOperatorsByStatus(status) {
 // Відправка повідомлення адміністратору
 async function sendToAdmin(message) {
   const adminns = await getAdmin();
-
+  
   for (const adminId of adminns) {
-    bot.sendMessage(adminId, message);
+    try {
+      bot.sendMessage(adminId, message);
+    } catch(error){
+      console.error(`❌ Помилка при надсиланні повідомлення для chatId ${adminId}:`, error.message);
+      continue; // Перехід до наступного користувача у списку
+    }
   }
 }
 

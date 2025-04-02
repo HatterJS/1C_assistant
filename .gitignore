@@ -1,3 +1,4 @@
 node_modules/
 .env
 credentials.json
+credentials_for_new_table.json

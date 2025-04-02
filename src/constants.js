@@ -1,3 +1,5 @@
+const spreadSheetID = process.env.SPREADSHEET_ID;
+
 const SHEETS = {
   TRANSFERS: 'Переміщення',
   WAREHOUSES: 'Склади',
@@ -10,14 +12,11 @@ const RANGES = {
   TRANSFERS_STATUS: (row) => `${SHEETS.TRANSFERS}!I${row}`, // Клітинка статусу за номером рядка
   TRANSFERS_USER: (column, row) => `${SHEETS.TRANSFERS}!${column}${row}`, // Відповідальний за зміну статусу
   WAREHOUSES: `${SHEETS.WAREHOUSES}!A2:B`, // A - перелік складів / B - скорочення
-  WAREHOUSES_ALL: `${SHEETS.WAREHOUSES}!A2:G`, // A - перелік складів / B - скорочення / C-G - відповідальні
+  WAREHOUSES_ALL: `${SHEETS.WAREHOUSES}!A2:Z`, // A - перелік складів / B - скорочення / C-G - відповідальні
   USERS: `${SHEETS.USERS}!A2:E`, // Перелік користувачів
+  CELLLINK: `https://docs.google.com/spreadsheets/d/${spreadSheetID}/edit?gid=1943639393#gid=1943639393&range=E` // Лінк для посилання на комірку таблиці Е+ххх
 };
-/*
-  const TELEGRAM = {
-    ADMIN_ID: 123456789
-  }
-  */
+
 module.exports = {
   SHEETS,
   RANGES,

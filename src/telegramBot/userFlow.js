@@ -139,7 +139,7 @@ async function sendTelegramMessage(rowId) {
   });
 
   const row = res.data.values[0]; // Останній рядок з таблиці
-  const message = `⚠️ Оформлено запит №${rowId} на переміщення.\n\nЗі складу: ${row[2]}\nНа склад: ${row[3]}\nКод 1С: ${row[4]}\nНоменклатура: ${row[5]}\nКількість: ${row[6]}\n\n`;
+  const message = `⚠️ Оформлено запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> на переміщення.\n\nЗі складу: ${row[2]}\nНа склад: ${row[3]}\nКод 1С: ${row[4]}\nНоменклатура: ${row[5]}\nКількість: ${row[6]}\n\n`;
 
   const warehouseFrom = row[2]; // Склад, з якого переміщується ТМЦ
   const chatIdList = await getWarehouseResponsibleChatIds(warehouseFrom);
@@ -156,24 +156,31 @@ async function sendTelegramMessage(rowId) {
     if (!approvedUsers.includes(chatId.toString())) {
       continue; // Перехід до наступної ітерації, якщо користувач не апрувнутий
     }
-    const sentMessage = await bot.sendMessage(chatId, message, {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: '✅ Підтвердити', callback_data: 'confirmOut_' + rowId },
-            { text: '❌ Скасувати', callback_data: 'cancelOut_' + rowId },
-          ],
-        ],
-      },
-    });
 
-    // Зберігаємо ідентифікатор повідомлення
-    if (!activeRequestsOut.has(rowId)) {
-      activeRequestsOut.set(rowId, []);
+    try {
+      const sentMessage = await bot.sendMessage(chatId, message, {
+        parse_mode: "HTML",
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '✅ Підтвердити', callback_data: 'confirmOut_' + rowId },
+              { text: '❌ Скасувати', callback_data: 'cancelOut_' + rowId },
+            ],
+          ],
+        },
+      });
+  
+      // Зберігаємо ідентифікатор повідомлення
+      if (!activeRequestsOut.has(rowId)) {
+        activeRequestsOut.set(rowId, []);
+      }
+      activeRequestsOut
+        .get(rowId)
+        .push({ chatId: chatId, messageId: sentMessage.message_id });
+    } catch(error){
+      console.error(`❌ Помилка при надсиланні повідомлення для chatId ${chatId}:`, error.message);
+      continue; // Перехід до наступного користувача у списку
     }
-    activeRequestsOut
-      .get(rowId)
-      .push({ chatId: chatId, messageId: sentMessage.message_id });
   }
 }
 // Функція для відправки повідомлення відповідальному, який отримує
@@ -186,7 +193,7 @@ async function sendToUserIn(rowId) {
   });
 
   const row = res.data.values[0]; // Останній рядок з таблиці
-  const message = `⚠️ Оформлено запит №${rowId} на переміщення.\n\nЗі складу: ${row[2]}\nНа склад: ${row[3]}\nКод 1С: ${row[4]}\nНоменклатура: ${row[5]}\nКількість: ${row[6]}\n\n`;
+  const message = `⚠️ Оформлено запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> на переміщення.\n\nЗі складу: ${row[2]}\nНа склад: ${row[3]}\nКод 1С: ${row[4]}\nНоменклатура: ${row[5]}\nКількість: ${row[6]}\n\n`;
 
   const warehouseFrom = row[3]; // Склад, з якого переміщується ТМЦ
   const chatIdList = await getWarehouseResponsibleChatIds(warehouseFrom);
@@ -203,31 +210,37 @@ async function sendToUserIn(rowId) {
     if (!approvedUsers.includes(chatId.toString())) {
       continue; // Перехід до наступної ітерації, якщо користувач не апрувнутий
     }
-    const sentMessage = await bot.sendMessage(chatId, message, {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: '✅ Підтвердити', callback_data: 'confirmIn_' + rowId },
-            { text: '❌ Скасувати', callback_data: 'cancelIn_' + rowId },
-          ],
-        ],
-      },
-    });
 
-    // Зберігаємо ідентифікатор повідомлення
-    if (!activeRequestsIn.has(rowId)) {
-      activeRequestsIn.set(rowId, []);
+    try {
+      const sentMessage = await bot.sendMessage(chatId, message, {
+        parse_mode: "HTML",
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '✅ Підтвердити', callback_data: 'confirmIn_' + rowId },
+              { text: '❌ Скасувати', callback_data: 'cancelIn_' + rowId },
+            ],
+          ],
+        },
+      });
+  
+      // Зберігаємо ідентифікатор повідомлення
+      if (!activeRequestsIn.has(rowId)) {
+        activeRequestsIn.set(rowId, []);
+      }
+      activeRequestsIn
+        .get(rowId)
+        .push({ chatId: chatId, messageId: sentMessage.message_id });
+    } catch(error){
+      console.error(`❌ Помилка при надсиланні повідомлення для chatId ${chatId}:`, error.message);
+      continue; // Перехід до наступного користувача у списку
     }
-    activeRequestsIn
-      .get(rowId)
-      .push({ chatId: chatId, messageId: sentMessage.message_id });
   }
 }
 
 // Реакція ан натискання кнопок
 async function buttonReaction(query) {
   const data = query.data;
-  const telegramID = query.from.id;
   const messageId = query.message.message_id;
   const chatId = query.message.chat.id;
   const rowId = data.split('_')[1];
@@ -257,25 +270,25 @@ async function buttonReaction(query) {
  }
 
   if (data.startsWith('confirmOut_')) {
-    newText = `✅ Запит №${rowId} передано @${userName}`;
+    newText = `✅ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> передано @${userName}`;
     await updateGoogleSheet(rowId, 'Передано', 'J', userName); // Оновлення статусу в Google Таблиці
     await deleteDuplicates('out', newText);
     await sendToUserIn(rowId);
   } else if (data.startsWith('cancelOut_')) {
-    newText = `❌ Запит №${rowId} скасовано @${userName}`;
+    newText = `❌ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> скасовано @${userName}`;
     await updateGoogleSheet(rowId, 'Скасовано', 'J', userName); // Оновлення статусу в Google Таблиці
     await deleteDuplicates('out', newText);
   } else if (data.startsWith('confirmIn_')) {
-    newText = `✅ Запит №${rowId} отримано @${userName}`;
+    newText = `✅ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> отримано @${userName}`;
     await updateGoogleSheet(rowId, 'Отримано', 'K', userName); // Оновлення статусу в Google Таблиці
     await deleteDuplicates('in', newText);
     await sendToOperator1C(rowId);
   } else if (data.startsWith('cancelIn_')) {
-    newText = `❌ Запит №${rowId} скасовано @${userName}`;
+    newText = `❌ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> скасовано @${userName}`;
     await updateGoogleSheet(rowId, 'Скасовано', 'K', userName); // Оновлення статусу в Google Таблиці
     await deleteDuplicates('in', newText);
   } else if (data.startsWith('processed_')) {
-    newText = `✅ Запит №${rowId} проведено @${userName}`;
+    newText = `✅ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> проведено @${userName}`;
     await updateGoogleSheet(rowId, 'Проведено', 'L', userName); // Оновлення статусу в Google Таблиці
   } else if (data.startsWith('warehouse_')) {
     newText = `✅ Склад обрано успішно`;
@@ -316,6 +329,7 @@ async function buttonReaction(query) {
     await bot.editMessageText(newText, {
       chat_id: chatId,
       message_id: messageId,
+      parse_mode: "HTML",
       reply_markup: { inline_keyboard: [] }, // Видаляємо кнопки разом з текстом
     });
   } catch (error) {
