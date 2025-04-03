@@ -17,7 +17,7 @@ async function sendToOperator1C(rowId) {
   if (!res.data.values || res.data.values.length === 0) return;
 
   const row = res.data.values[0];
-  const message = `Підтверджено запит №${rowId}.\n\nЗі складу: ${row[2]}\nНа склад: ${row[3]}\nКод 1С: ${row[4]}\nНоменклатура: ${row[5]}\nКількість: ${row[6]}\n\nОчікує на проведення у системі.`;
+  const message = `Підтверджено запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a>.\n\nЗі складу: ${row[2]}\nНа склад: ${row[3]}\nКод 1С: ${row[4]}\nНоменклатура: ${row[5]}\nКількість: ${row[6]}\n\nОчікує на проведення у системі.`;
 
   // Отримуємо всіх користувачів із таблиці Users, де статус 'Operator_on'
   const operators = await getOperatorsByStatus('Operator_on');
@@ -25,6 +25,7 @@ async function sendToOperator1C(rowId) {
   for (const operatorId of operators) {
     try {
       const sentMessage = await bot.sendMessage(operatorId, message, {
+        parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [
             [{ text: '📝 Взяти в роботу', callback_data: `take_${rowId}` }],

@@ -260,6 +260,7 @@ async function buttonReaction(query) {
           await bot.editMessageText(newText, {
             chat_id: msg.chatId,
             message_id: msg.messageId,
+            parse_mode: 'HTML',
             reply_markup: { inline_keyboard: [] }, // Видаляємо кнопки разом з текстом
           });
         } catch (error) {
