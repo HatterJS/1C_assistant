@@ -25,7 +25,7 @@ async function handleStart(msg) {
   const telegramID = msg.from.id;
 
   if (await isUserRegistered(telegramID)) {
-    bot.sendMessage(chatId, '✅ Ви вже зареєстровані в системі.');
+    bot.sendMessage(chatId, `✅ Ви вже зареєстровані в системі.\n👤 Ваш ID: ${chatId}`);
     return;
   }
 
@@ -116,7 +116,7 @@ async function choiceWarehouse(query) {
 
     bot.sendMessage(
       chatId,
-      `Реєстрація завершена!\n👤 Ім'я: ${userFullName}\n📦 Склад: ${warehouse}`
+      `Реєстрація завершена!\n👤 Ім'я: ${userFullName}\n👤 ID: ${chatId}\n📦 Склад: ${warehouse}`
     );
   } catch (error) {
     console.error('❌ Помилка запису в Google Sheets:', error);
