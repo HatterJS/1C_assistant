@@ -8,6 +8,7 @@ const SHEETS = {
 
 const RANGES = {
   TRANSFERS: `${SHEETS.TRANSFERS}!A1:A`, // Всі рядки з переміщеннями для пошуку останнього доданого рядка
+  TRANSFERS_ALL: `${SHEETS.TRANSFERS}!A2:I`, // Всі рядки для пошуку не проведених заявок
   TRANSFERS_ROW: (row) => `${SHEETS.TRANSFERS}!A${row}:H${row}`, // Рядок за номером
   TRANSFERS_STATUS: (row) => `${SHEETS.TRANSFERS}!I${row}`, // Клітинка статусу за номером рядка
   TRANSFERS_USER: (column, row) => `${SHEETS.TRANSFERS}!${column}${row}`, // Відповідальний за зміну статусу

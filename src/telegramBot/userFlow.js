@@ -25,13 +25,176 @@ async function handleStart(msg) {
   const telegramID = msg.from.id;
 
   if (await isUserRegistered(telegramID)) {
-    bot.sendMessage(chatId, `✅ Ви вже зареєстровані в системі.\n👤 Ваш ID: ${chatId}`);
+    bot.sendMessage(chatId, `✅ Ви вже зареєстровані в системі.\n👤 Ваш ID: ${telegramID}`);
     return;
   }
 
   bot.sendMessage(chatId, '👋 Вітаю! Введіть своє прізвище та ім’я:');
   userStates[chatId] = { step: 'awaiting_name' };
 }
+
+//Форматування повідомлення для користувача
+function formatTransferMessage(transfer) {
+  const {
+    rowIndex,
+    date,
+    inicUser,
+    from,
+    to,
+    code,
+    name,
+    quantity,
+    status = ''
+  } = transfer;
+
+  return `
+${inicUser} оформив запит №${rowIndex}
+
+З: ${from}
+На: ${to}
+Код 1С: ${code}
+Назва: ${name}
+К-сть: ${quantity}
+`.trim();
+}
+
+//Отримуємо склади за які відповідає користувач
+async function getWarehousesByUser(telegramID) {
+  const sheets = await getSheetsClient();
+  const data = await sheets.spreadsheets.values.get({
+    spreadsheetId: spreadSheetID,
+    range: RANGES.WAREHOUSES_ALL,
+  });
+
+  const rows = data.data.values || [];
+
+  const warehouses = rows.reduce((acc, row) => {
+    const warehouseName = row[0];
+    const responsibleIDs = row.slice(2);
+    if (responsibleIDs.includes(String(telegramID))) {
+      acc.push(warehouseName);
+    }
+    return acc;
+  }, []);
+
+  return warehouses;
+}
+
+// Обробка команди /orderOut - всі переміщення без статусу
+async function handleOrderOut(msg) {
+  const chatId = msg.chat.id;
+  const telegramID = msg.from.id;
+
+  if (!(await isUserRegistered(telegramID))) {
+    return bot.sendMessage(chatId, 'Ви не зареєстровані.');
+  }
+
+  const warehouses = await getWarehousesByUser(telegramID);
+  const transfers = await getTransfersByStatus(warehouses, "");
+console.log("Переміщення OUT:", transfers);
+
+  if (!transfers.length) {
+    return bot.sendMessage(chatId, 'Немає відкритих переміщень.');
+  }
+
+  for (const transfer of transfers) {
+    const message = formatTransferMessage(transfer);
+
+    const keyboard = {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "✅ Підтвердити", callback_data: `confirmOut_${transfer.rowIndex}` },
+            { text: "❌ Скасувати", callback_data: `cancelOut_${transfer.rowIndex}` }
+          ]
+        ]
+      },
+      parse_mode: "HTML",
+      disable_web_page_preview: true
+    };
+    await bot.sendMessage(chatId, message, keyboard);
+  }
+
+}
+
+// Обробка команди /orderIn - всі переміщення зі статусом "Передано"
+async function handleOrderIn(msg) {
+  const chatId = msg.chat.id;
+  const telegramID = msg.from.id;
+
+  if (!(await isUserRegistered(telegramID))) {
+    return bot.sendMessage(chatId, 'Ви не зареєстровані.');
+  }
+
+  const warehouses = await getWarehousesByUser(telegramID);
+  const transfers = await getTransfersByStatus(warehouses, "Передано", "in");
+  
+  console.log("Переміщення IN:", transfers);
+
+  if (!transfers.length) {
+    return bot.sendMessage(chatId, 'Немає відкритих переміщень.');
+  }
+
+  for (const transfer of transfers) {
+    const message = formatTransferMessage(transfer);
+
+    const keyboard = {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "✅ Підтвердити", callback_data: `confirmIn_${transfer.rowIndex}` },
+            { text: "❌ Скасувати", callback_data: `cancelIn_${transfer.rowIndex}` }
+          ]
+        ]
+      },
+      parse_mode: "HTML",
+      disable_web_page_preview: true
+    };
+
+    await bot.sendMessage(chatId, message, keyboard);
+  }
+}
+
+//Функція для повернення всіх переміщень в залежності від статусу out / in
+async function getTransfersByStatus(warehouses, status, direction = "out") {
+  const sheets = await getSheetsClient();
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: spreadSheetID,
+    range: RANGES.TRANSFERS_ALL,
+  });
+
+  const rows = response.data.values || [];
+
+  // Повертаємо не просто рядки, а об'єкти з рядком
+  const transfers = [];
+
+  rows.forEach((row, index) => {
+    const fromWarehouse = row[2]; // Стовпець C
+    const toWarehouse = row[3];   // Стовпець D
+    const rowStatus = row[8];     // Стовпець I
+
+    const match =
+      (direction === "out" && warehouses.includes(fromWarehouse) && (!rowStatus || rowStatus.trim() === status)) ||
+      (direction === "in" && warehouses.includes(toWarehouse) && rowStatus && rowStatus.trim() === status);
+
+    if (match) {
+      transfers.push({
+        rowIndex: index + 2, // Google Sheets має 1-based індексацію
+        date: row[0] || '',
+        inicUser: row[1] || 'Анонім',
+        from: fromWarehouse || '',
+        to: toWarehouse || '',
+        code: row[4] || '',
+        name: row[5] || '',
+        quantity: row[6] || '',
+        status: rowStatus || '',
+      });
+    }
+  });
+
+  return transfers;
+}
+
 
 // Обробка отриманого імені
 async function getUserName(msg) {
@@ -340,6 +503,8 @@ async function buttonReaction(query) {
 
 module.exports = {
   handleStart,
+  handleOrderOut,
+  handleOrderIn,
   getUserName,
   choiceWarehouse,
   sendTelegramMessage,

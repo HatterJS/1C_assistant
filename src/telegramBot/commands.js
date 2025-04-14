@@ -11,3 +11,6 @@ bot.onText(/\/start/, (msg) => {
   userFlow.handleStart(msg);
   createMenu(chatId);
 });
+
+bot.onText(/Передати/, userFlow.handleOrderOut);
+bot.onText(/Отримати/, userFlow.handleOrderIn);
