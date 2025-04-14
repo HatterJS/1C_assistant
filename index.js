@@ -19,6 +19,7 @@ let lastKnownRow = 0;
 })();
 
 // Перевірка нових записів кожну хвилину
+/*
 setInterval(async () => {
   const lastRow = await getLastRow();
 
@@ -30,3 +31,4 @@ setInterval(async () => {
     lastKnownRow = lastRow;
   }
 }, 30000);
+*/

@@ -91,7 +91,6 @@ async function handleOrderOut(msg) {
 
   const warehouses = await getWarehousesByUser(telegramID);
   const transfers = await getTransfersByStatus(warehouses, "");
-console.log("Переміщення OUT:", transfers);
 
   if (!transfers.length) {
     return bot.sendMessage(chatId, 'Немає відкритих переміщень.');
@@ -128,8 +127,6 @@ async function handleOrderIn(msg) {
 
   const warehouses = await getWarehousesByUser(telegramID);
   const transfers = await getTransfersByStatus(warehouses, "Передано", "in");
-  
-  console.log("Переміщення IN:", transfers);
 
   if (!transfers.length) {
     return bot.sendMessage(chatId, 'Немає відкритих переміщень.');
@@ -436,21 +433,21 @@ async function buttonReaction(query) {
   if (data.startsWith('confirmOut_')) {
     newText = `✅ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> передано @${userName}`;
     await updateGoogleSheet(rowId, 'Передано', 'J', userName); // Оновлення статусу в Google Таблиці
-    await deleteDuplicates('out', newText);
-    await sendToUserIn(rowId);
+    //await deleteDuplicates('out', newText);
+    //await sendToUserIn(rowId);
   } else if (data.startsWith('cancelOut_')) {
     newText = `❌ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> скасовано @${userName}`;
     await updateGoogleSheet(rowId, 'Скасовано', 'J', userName); // Оновлення статусу в Google Таблиці
-    await deleteDuplicates('out', newText);
+    //await deleteDuplicates('out', newText);
   } else if (data.startsWith('confirmIn_')) {
     newText = `✅ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> отримано @${userName}`;
     await updateGoogleSheet(rowId, 'Отримано', 'K', userName); // Оновлення статусу в Google Таблиці
-    await deleteDuplicates('in', newText);
-    await sendToOperator1C(rowId);
+    //await deleteDuplicates('in', newText);
+    //await sendToOperator1C(rowId);
   } else if (data.startsWith('cancelIn_')) {
     newText = `❌ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> скасовано @${userName}`;
     await updateGoogleSheet(rowId, 'Скасовано', 'K', userName); // Оновлення статусу в Google Таблиці
-    await deleteDuplicates('in', newText);
+    //await deleteDuplicates('in', newText);
   } else if (data.startsWith('processed_')) {
     newText = `✅ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> проведено @${userName}`;
     await updateGoogleSheet(rowId, 'Проведено', 'L', userName); // Оновлення статусу в Google Таблиці
