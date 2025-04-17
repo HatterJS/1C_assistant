@@ -1,4 +1,5 @@
 const bot = require('../config/botConfig');
+const { createMenu } = require('./menu');
 const { SHEETS, RANGES } = require('../constants');
 const {
   isUserRegistered,
@@ -85,6 +86,8 @@ async function handleOrderOut(msg) {
   const chatId = msg.chat.id;
   const telegramID = msg.from.id;
 
+  createMenu(chatId, 'Заявки на переведення:');
+
   if (!(await isUserRegistered(telegramID))) {
     return bot.sendMessage(chatId, 'Ви не зареєстровані.');
   }
@@ -120,6 +123,8 @@ async function handleOrderOut(msg) {
 async function handleOrderIn(msg) {
   const chatId = msg.chat.id;
   const telegramID = msg.from.id;
+  
+  createMenu(chatId, 'Заявки на отримання:');
 
   if (!(await isUserRegistered(telegramID))) {
     return bot.sendMessage(chatId, 'Ви не зареєстровані.');
@@ -168,11 +173,13 @@ async function getTransfersByStatus(warehouses, status, direction = "out") {
   rows.forEach((row, index) => {
     const fromWarehouse = row[2]; // Стовпець C
     const toWarehouse = row[3];   // Стовпець D
-    const rowStatus = row[8];     // Стовпець I
-
+    const rowStatus = (row[8] || '').trim(); // Стовпець I
+  
+    const isMatchingStatus = rowStatus === status || rowStatus === '';
+  
     const match =
-      (direction === "out" && warehouses.includes(fromWarehouse) && (!rowStatus || rowStatus.trim() === status)) ||
-      (direction === "in" && warehouses.includes(toWarehouse) && rowStatus && rowStatus.trim() === status);
+      (direction === "out" && warehouses.includes(fromWarehouse) && isMatchingStatus) ||
+      (direction === "in" && warehouses.includes(toWarehouse) && isMatchingStatus);
 
     if (match) {
       transfers.push({
@@ -409,6 +416,13 @@ async function buttonReaction(query) {
   const lastName = query.from.last_name || '';
   const userName = query.from.username || `${firstName} ${lastName}`.trim();
   
+  const sheets = await getSheetsClient();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: spreadSheetID,
+    range: RANGES.TRANSFERS_STATUS(rowId), // Отримуємо дані для конкретного рядка
+  });
+  const currentStatus = (res.data.values && res.data.values[0] && res.data.values[0][0]) || '';
+ /* 
  async function deleteDuplicates(step, newText) {
     const messages = step === 'out' 
     ? activeRequestsOut.get(Number(rowId)) || [] 
@@ -429,25 +443,41 @@ async function buttonReaction(query) {
       }
     }
  }
-
+*/
   if (data.startsWith('confirmOut_')) {
     newText = `✅ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> передано @${userName}`;
-    await updateGoogleSheet(rowId, 'Передано', 'J', userName); // Оновлення статусу в Google Таблиці
-    //await deleteDuplicates('out', newText);
-    //await sendToUserIn(rowId);
+    if (currentStatus.trim() !== '') {
+      newText = `✅ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> вже опрацьовано`;
+    } else {
+      await updateGoogleSheet(rowId, 'Передано', 'J', userName); // Оновлення статусу в Google Таблиці
+      //await deleteDuplicates('out', newText);
+      //await sendToUserIn(rowId);
+    }
   } else if (data.startsWith('cancelOut_')) {
     newText = `❌ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> скасовано @${userName}`;
+    if (currentStatus.trim() !== '') {
+      newText = `✅ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> вже опрацьовано`;
+    } else {
     await updateGoogleSheet(rowId, 'Скасовано', 'J', userName); // Оновлення статусу в Google Таблиці
     //await deleteDuplicates('out', newText);
+    }
   } else if (data.startsWith('confirmIn_')) {
     newText = `✅ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> отримано @${userName}`;
+    if (currentStatus.trim() !== '' && currentStatus.trim() !== 'Передано' ) {
+      newText = `✅ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> вже опрацьовано`;
+    } else {
     await updateGoogleSheet(rowId, 'Отримано', 'K', userName); // Оновлення статусу в Google Таблиці
     //await deleteDuplicates('in', newText);
     //await sendToOperator1C(rowId);
+    }
   } else if (data.startsWith('cancelIn_')) {
     newText = `❌ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> скасовано @${userName}`;
+    if (currentStatus.trim() !== '' && currentStatus.trim() !== 'Передано' ) {
+      newText = `✅ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> вже опрацьовано`;
+    } else {
     await updateGoogleSheet(rowId, 'Скасовано', 'K', userName); // Оновлення статусу в Google Таблиці
     //await deleteDuplicates('in', newText);
+    }
   } else if (data.startsWith('processed_')) {
     newText = `✅ Запит <a href="${RANGES.CELLLINK}${rowId}">№${rowId}</a> проведено @${userName}`;
     await updateGoogleSheet(rowId, 'Проведено', 'L', userName); // Оновлення статусу в Google Таблиці

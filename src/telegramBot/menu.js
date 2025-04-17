@@ -5,7 +5,7 @@ const {
 } = require('../googleSheets/operators');
 
 // Функція для створення меню
-async function createMenu(chatId) {
+async function createMenu(chatId, msg) {
   //const operators = await getOperators1C();
   //if (operators.includes(chatId.toString())) {
     const options = {
@@ -17,7 +17,7 @@ async function createMenu(chatId) {
       },
     };
 
-    bot.sendMessage(chatId, 'Оберіть опцію.', options);
+    bot.sendMessage(chatId, msg, options);
   //}
 }
 /*

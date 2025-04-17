@@ -9,7 +9,7 @@ bot.on('callback_query', userFlow.buttonReaction);
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
   userFlow.handleStart(msg);
-  createMenu(chatId);
+  createMenu(chatId, 'Вітаю!');
 });
 
 bot.onText(/Передати/, userFlow.handleOrderOut);
