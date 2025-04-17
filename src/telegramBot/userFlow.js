@@ -247,7 +247,7 @@ async function choiceWarehouse(query) {
   const telegramID = query.from.id;
   const username = query.from.username || 'Без username';
   const callbackData = decodeURIComponent(query.data);
-
+console.log(query.message);
   if (!userStates[chatId] || !callbackData) return;
 
   const shortCode = callbackData.replace('warehouse_', ''); // Використовуємо callbackData без 'warehouse_' перед префіксом
@@ -415,14 +415,19 @@ async function buttonReaction(query) {
   const firstName = query.from.first_name || '';
   const lastName = query.from.last_name || '';
   const userName = query.from.username || `${firstName} ${lastName}`.trim();
-  
+  let currentStatus = ''
+console.log(rowId);  
+console.log(data);
+if (!data.startsWith('warehouse_')){
   const sheets = await getSheetsClient();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: spreadSheetID,
     range: RANGES.TRANSFERS_STATUS(rowId), // Отримуємо дані для конкретного рядка
   });
-  const currentStatus = (res.data.values && res.data.values[0] && res.data.values[0][0]) || '';
- /* 
+  currentStatus = (res.data.values && res.data.values[0] && res.data.values[0][0]) || '';
+}
+console.log(currentStatus);
+/* 
  async function deleteDuplicates(step, newText) {
     const messages = step === 'out' 
     ? activeRequestsOut.get(Number(rowId)) || [] 
